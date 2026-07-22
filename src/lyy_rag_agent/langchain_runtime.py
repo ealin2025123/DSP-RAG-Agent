@@ -170,7 +170,12 @@ class LangChainDSPRAGAgent:
             messages = [{"role": "system", "content": prompt}] + history
             messages.append({
                 "role": "user",
-                "content": "用户问题：\n{}\n\n知识库证据：\n{}".format(state["query"], state["context"]),
+                "content": "用户问题：\n{}\n\n知识库证据：\n{}{}".format(
+                    state["query"], state["context"],
+                    "\n\n上次审核问题：\n{}\n请修正后重新生成完整回答。".format(
+                        state.get("review_feedback", "")
+                    ) if state.get("review_feedback") else "",
+                ),
             })
             try:
                 answer = provider.complete(messages)

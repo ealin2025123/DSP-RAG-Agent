@@ -8,7 +8,7 @@ import streamlit as st
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.append(str(ROOT / "vendor"))
-from lyy_rag_agent.langchain_runtime import LangChainDSPRAGAgent  # noqa: E402
+from lyy_rag_agent.agentic_runtime import AgenticDSPRAGAgent  # noqa: E402
 
 
 st.set_page_config(
@@ -28,9 +28,9 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-@st.cache_resource(show_spinner="正在加载 RAG 知识库与 LangChain 工作流…")
+@st.cache_resource(show_spinner="正在加载 Agentic RAG 知识库与 LangGraph 工作流…")
 def get_agent():
-    return LangChainDSPRAGAgent()
+    return AgenticDSPRAGAgent()
 
 
 agent = get_agent()
@@ -47,13 +47,14 @@ if "messages" not in st.session_state:
 
 with st.sidebar:
     st.title("DSP 知识助手")
-    st.caption("LangChain 1.x · RAG · Qwen/DeepSeek · SQLite")
+    st.caption("LangChain 1.x · LangGraph · Qwen · Tavily · SQLite")
     st.markdown('<p class="status-ok">● Agent 已就绪</p>', unsafe_allow_html=True)
     col1, col2 = st.columns(2)
     col1.metric("知识块", len(agent.base.embedding_index.chunks))
     col2.metric("向量", len(agent.base.embedding_index.vectors))
     st.write("Embedding：", "已就绪" if agent.base.embedding_index.ready else "离线")
     st.write("Rerank：", "已就绪" if agent.base.reranker.available else "离线")
+    st.write("Tavily：", "已就绪" if agent.tavily_client.available else "未配置")
     st.write("会话：", st.session_state.session_id)
     st.write("知识库：", "本地私有数据" if agent.base.knowledge_mode == "private" else "公开 Demo 数据")
     show_trace = st.toggle("显示 Agent 工作流", value=False)
@@ -64,6 +65,12 @@ with st.sidebar:
         help="自动：简单问题快速回答，复杂问题深度核验；快速：本地检索且跳过 Reviewer；深度：Qwen3-Max 并完整核验。",
     )
     response_mode = {"自动": "auto", "快速": "fast", "深度": "deep"}[mode_label]
+    allow_web = st.toggle(
+        "允许 Tavily 联网补充",
+        value=False,
+        disabled=not agent.tavily_client.available,
+        help="仅在知识库证据不足或问题要求最新信息时调用；默认限制到 Amazon Ads 官方域名。",
+    )
     if st.button("新建对话", use_container_width=True):
         st.session_state.session_id = uuid.uuid4().hex[:12]
         st.session_state.messages = []
@@ -93,7 +100,9 @@ if question := st.chat_input("请输入 DSP 配置问题…"):
     with st.chat_message("assistant"):
         with st.spinner("正在检索知识库并核验回答…"):
             try:
-                response = agent.invoke(question, st.session_state.session_id, response_mode)
+                response = agent.invoke(
+                    question, st.session_state.session_id, response_mode, allow_web=allow_web
+                )
             except Exception as exc:
                 st.error("Agent 处理失败：{}".format(exc))
             else:
@@ -104,7 +113,10 @@ if question := st.chat_input("请输入 DSP 配置问题…"):
                     "通过" if response.review_passed else "需关注",
                 ))
                 total_ms = response.trace[-1].get("total_ms", 0)
-                st.caption("总耗时：{:.2f} 秒 · {}模式".format(total_ms / 1000, mode_label))
+                web_used = response.trace[-1].get("web_used", False)
+                st.caption("总耗时：{:.2f} 秒 · {}模式 · Tavily {}".format(
+                    total_ms / 1000, mode_label, "已使用" if web_used else "未使用"
+                ))
                 if show_trace:
                     with st.expander("Agent 工作流"):
                         timings = [
