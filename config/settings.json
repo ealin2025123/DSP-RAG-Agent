@@ -1,0 +1,65 @@
+{
+  "retrieval": {
+    "bm25_top_k": 12,
+    "char_vector_top_k": 12,
+    "dense_top_k": 12,
+    "fusion_candidate_k": 20,
+    "fusion_top_k": 6,
+    "rrf_k": 60
+  },
+  "embedding": {
+    "enabled": true,
+    "model": "text-embedding-v4",
+    "dimensions": 1024,
+    "batch_size": 10
+  },
+  "rerank": {
+    "enabled": true,
+    "model": "qwen3-rerank",
+    "top_n": 6,
+    "instruct": "Given an Amazon DSP configuration question, retrieve passages that directly answer the question."
+  },
+  "routing": {
+    "default_provider": "qwen_fast",
+    "complex_provider": "qwen",
+    "enable_complex_provider": true
+  },
+  "review": {
+    "enabled": true,
+    "provider": "qwen"
+  },
+  "models": {
+    "qwen_fast": {
+      "model": "qwen-plus",
+      "fallback_models": ["qwen-flash"],
+      "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+      "api_key_env": "DASHSCOPE_API_KEY",
+      "enable_thinking": false,
+      "temperature": 0.1,
+      "max_tokens": 900
+    },
+    "qwen": {
+      "model": "qwen3-max",
+      "fallback_models": ["qwen-plus", "qwen-flash"],
+      "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+      "api_key_env": "DASHSCOPE_API_KEY",
+      "enable_thinking": false,
+      "temperature": 0.1,
+      "max_tokens": 1200
+    },
+    "deepseek": {
+      "model": "deepseek-v4-flash",
+      "base_url": "https://api.deepseek.com",
+      "api_key_env": "DEEPSEEK_API_KEY",
+      "temperature": 0.1,
+      "max_tokens": 1600
+    }
+  },
+  "security": {
+    "redact_before_model": true,
+    "custom_sensitive_terms": []
+  },
+  "history": {
+    "max_messages": 8
+  }
+}

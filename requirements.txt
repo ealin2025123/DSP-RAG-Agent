@@ -1,0 +1,8 @@
+# LangChain 1.x and current Streamlit require Python 3.10+.
+langchain>=1.0,<2.0
+langchain-openai>=1.0,<2.0
+streamlit>=1.40,<2.0
+
+# Document loaders:
+openpyxl>=3.1,<4.0
+PyPDF2==3.0.1

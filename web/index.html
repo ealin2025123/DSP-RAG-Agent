@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>DSP RAG Agent</title>
+  <style>
+    :root{color-scheme:light;--ink:#17213a;--muted:#6c768c;--line:#dfe5ef;--blue:#3157d5;--pale:#f4f7fc;--ok:#087a55}*{box-sizing:border-box}
+    body{margin:0;background:linear-gradient(140deg,#eef3ff,#fbfcff 45%,#f5f2ff);font:15px/1.65 system-ui,"Microsoft YaHei",sans-serif;color:var(--ink)}
+    main{width:min(920px,calc(100% - 28px));margin:32px auto}.hero,.panel{background:#fff;border:1px solid rgba(214,222,237,.9);box-shadow:0 18px 48px rgba(44,62,112,.1);border-radius:22px}
+    .hero{padding:26px 30px;margin-bottom:16px}h1{margin:0;font-size:28px}.sub{color:var(--muted);margin-top:5px}.status{display:flex;gap:9px;flex-wrap:wrap;margin-top:16px}.tag{border-radius:99px;padding:4px 10px;background:var(--pale);font-size:13px}.ok{color:var(--ok)}
+    .panel{padding:24px}.messages{min-height:290px;max-height:55vh;overflow:auto}.empty{color:var(--muted);padding:72px 10px;text-align:center}.msg{margin:12px 0;padding:15px 17px;border-radius:16px;white-space:pre-wrap}.user{margin-left:12%;background:#eaf0ff}.agent{margin-right:5%;background:var(--pale);border:1px solid var(--line)}
+    .meta{font-size:12px;color:var(--muted);margin-top:9px}.composer{display:grid;grid-template-columns:1fr auto;gap:10px;margin-top:18px}textarea{resize:vertical;min-height:70px;max-height:180px;border:1px solid var(--line);border-radius:14px;padding:13px;font:inherit;outline:none}textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px #3157d51a}button{border:0;border-radius:14px;background:var(--blue);color:white;padding:0 22px;font-weight:700;cursor:pointer}button:disabled{opacity:.55;cursor:wait}details{margin-top:10px;color:var(--muted)}pre{white-space:pre-wrap;font-size:12px;background:#111827;color:#dbe7ff;padding:12px;border-radius:10px;overflow:auto}
+    @media(max-width:620px){main{margin:14px auto}.hero,.panel{border-radius:16px;padding:18px}.composer{grid-template-columns:1fr}button{height:48px}.user{margin-left:3%}}
+  </style>
+</head>
+<body><main><section class="hero"><h1>DSP RAG Agent</h1><div class="sub">自建 DSP 广告投放配置知识库 · 安全检索 · 多 Agent 核验</div><div id="status" class="status"><span class="tag">正在检查服务…</span></div></section>
+<section class="panel"><div id="messages" class="messages"><div class="empty">可以询问素材规范、配置流程、命名规则或投放异常排查。</div></div><div class="composer"><textarea id="question" placeholder="例如：Custom Image 414×125 应该用什么设计尺寸？"></textarea><button id="send">发送</button></div></section></main>
+<script>
+const messages=document.querySelector('#messages'),question=document.querySelector('#question'),send=document.querySelector('#send'),session='web-'+crypto.getRandomValues(new Uint32Array(1))[0].toString(16);
+function add(kind,text,meta,trace){const empty=messages.querySelector('.empty');if(empty)empty.remove();const box=document.createElement('div');box.className='msg '+kind;box.textContent=text;if(meta){const m=document.createElement('div');m.className='meta';m.textContent=meta;box.appendChild(m)}if(trace){const d=document.createElement('details'),s=document.createElement('summary'),p=document.createElement('pre');s.textContent='查看 Agent 工作流';p.textContent=JSON.stringify(trace,null,2);d.append(s,p);box.appendChild(d)}messages.appendChild(box);messages.scrollTop=messages.scrollHeight}
+async function health(){try{const r=await fetch('/api/health'),d=await r.json();document.querySelector('#status').innerHTML=`<span class="tag ok">● 服务正常</span><span class="tag">知识块 ${d.chunks}</span><span class="tag">向量 ${d.vectors}</span><span class="tag">Embedding ${d.embedding?'就绪':'离线'}</span><span class="tag">Rerank ${d.rerank?'就绪':'离线'}</span>`}catch(e){document.querySelector('#status').innerHTML='<span class="tag">服务未连接</span>'}}
+async function ask(){const text=question.value.trim();if(!text||send.disabled)return;add('user',text);question.value='';send.disabled=true;send.textContent='思考中…';try{const r=await fetch('/api/ask',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:text,session})}),d=await r.json();if(!r.ok)throw new Error(d.error||'请求失败');add('agent',d.answer,`${d.provider} · ${d.intent} · 审核${d.review_passed?'通过':'需关注'}`,d.trace)}catch(e){add('agent','请求失败：'+e.message)}finally{send.disabled=false;send.textContent='发送';question.focus()}}
+send.addEventListener('click',ask);question.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();ask()}});health();question.focus();
+</script></body></html>
